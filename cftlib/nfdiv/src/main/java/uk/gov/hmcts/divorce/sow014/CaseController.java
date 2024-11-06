@@ -76,7 +76,8 @@ public class CaseController {
 
         String response = getCase((Long) caseDetails.get("id"));
         log.info("case response: {}", response);
-        return response;
+        throw new RuntimeException();
+//        return response;
     }
 
     @GetMapping(
