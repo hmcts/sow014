@@ -3,6 +3,7 @@ package uk.gov.hmcts.divorce.solicitor.event;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.jooq.exception.DataChangedException;
+import org.jooq.impl.DefaultDSLContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -24,6 +25,7 @@ import uk.gov.hmcts.divorce.sow014.lib.MyRadioList;
 import java.util.List;
 
 import static java.util.stream.Collectors.toList;
+import static org.jooq.nfdiv.civil.Tables.PARTIES;
 import static uk.gov.hmcts.divorce.divorcecase.model.UserRole.CASE_WORKER;
 import static uk.gov.hmcts.divorce.divorcecase.model.UserRole.JUDGE;
 import static uk.gov.hmcts.divorce.divorcecase.model.UserRole.LEGAL_ADVISOR;
@@ -43,13 +45,15 @@ public class SolicitorUpdateParties implements CCDConfig<CaseData, State, UserRo
 
     private HttpServletRequest httpServletRequest;
     private final PartyRepository partyRepository;
+    private final DefaultDSLContext db;
 
     @Autowired
     public SolicitorUpdateParties(CcdAccessService ccdAccessService, HttpServletRequest httpServletRequest,
-                                  PartyRepository partyRepository) {
+                                  PartyRepository partyRepository, DefaultDSLContext db) {
         this.ccdAccessService = ccdAccessService;
         this.httpServletRequest = httpServletRequest;
         this.partyRepository = partyRepository;
+        this.db = db;
     }
 
     @Override
@@ -136,7 +140,17 @@ public class SolicitorUpdateParties implements CCDConfig<CaseData, State, UserRo
         CaseData data = details.getData();
         Party party = data.getParty();
 
-        partyRepository.updatePartyThroughCRUD(party);
+        var p = db.fetchSingle(
+            PARTIES,
+            PARTIES.PARTY_ID.eq(Integer.valueOf(party.getPartyId())),
+            PARTIES.REFERENCE.eq(details.getId())
+        );
+        p.setForename(party.getForename());
+        p.setSurname(party.getSurname());
+        p.setVersion(Long.valueOf(party.getVersion()));
+        p.store();
+
+
 //        Party existingParty = partyRepository.fetchById(Integer.parseInt(party.getPartyId()));
 //
 //        if (existingParty != null && existingParty.getVersion().equals(party.getVersion())) {
