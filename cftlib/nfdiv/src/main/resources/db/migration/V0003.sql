@@ -1,11 +1,25 @@
 drop schema if exists civil cascade;
 create schema civil;
 
-
+create table civil.solicitors(
+                            solicitor_id serial primary key,
+                            organisation_id text not null,
+                            user_id text not null,
+                            reference bigint references ccd.case_data(reference) not null,
+                            role text,
+                            forename text not null,
+                            surname text not null,
+                            version bigint not null
+);
 create table civil.parties(
                             party_id serial primary key,
                             forename text not null,
-                            solicitor_id text
+                            surname text not null,
+                            version bigint not null,
+                            locked_at timestamp,
+                            locked_by text,
+                            solicitor_id bigint references civil.solicitors(solicitor_id),
+                            reference bigint references ccd.case_data(reference) not null
 );
 
 
@@ -49,7 +63,7 @@ select party_id, claim_id, forename, description, reason from civil.applications
 
 create view civil.judge_claims as
 select
-  claim_id, reference, description, amount_pence,
+  claim_id, civil.claims.reference, description, amount_pence,
   jsonb_agg(forename) filter (where role = 'claimant') claimants,
   jsonb_agg(forename) filter (where role = 'defendant') defendants
 from
@@ -63,7 +77,7 @@ select
   solicitor_id,
   forename,
   role,
-  reference,
+  civil.claims.reference,
   description,
   amount_pence
 from
@@ -71,3 +85,20 @@ from
   join civil.claim_members using (party_id)
   join civil.claims using (claim_id);
 
+
+-- CREATE OR REPLACE FUNCTION update_version() RETURNS TRIGGER AS $$
+-- BEGIN
+--     NEW.VERSION := OLD.VERSION + 1;
+-- RETURN NEW;
+-- END;
+-- $$ LANGUAGE plpgsql;
+--
+-- CREATE TRIGGER update_parties_version
+--   BEFORE UPDATE ON civil.parties
+--   FOR EACH ROW
+--   EXECUTE FUNCTION update_version();
+--
+-- CREATE TRIGGER update_solicitors_version
+--   BEFORE UPDATE ON civil.solicitors
+--   FOR EACH ROW
+--   EXECUTE FUNCTION update_version();
