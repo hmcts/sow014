@@ -35,7 +35,7 @@
   "applicant1SolicitorOrganisationPolicy": {
     "Organisation": {
       "OrganisationName": "Test 1 Organisation",
-      "OrganisationID": "0FA7S8S"
+      "OrganisationID": "HEBFGBR"
     },
     "OrgPolicyCaseAssignedRole": "[APPONESOLICITOR]"
   },
@@ -77,20 +77,6 @@
     "Fees": null,
     "PaymentTotal": "55000"
   },
-  "applicationPayments": [
-    {
-      "id": null,
-      "value": {
-        "created": null,
-        "feeCode": "FEE0001",
-        "amount": 55000,
-        "status": "success",
-        "channel": "online",
-        "reference": "paymentRef",
-        "transactionId": "ge7po9h5bhbtbd466424src9tk"
-      }
-    }
-  ],
   "documentUploadComplete": "Yes",
   "labelContentApplicant2": "respondent",
   "labelContentTheApplicant2": "the respondent",

@@ -7,6 +7,8 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.jooq.DSLContext;
+import org.jooq.nfdiv.civil.tables.Payment;
+import org.jooq.nfdiv.civil.tables.records.PaymentRecord;
 import org.jooq.nfdiv.civil.tables.records.SolicitorsRecord;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.DefaultResourceLoader;
@@ -30,7 +32,9 @@ import uk.gov.hmcts.divorce.solicitor.service.CcdAccessService;
 import uk.gov.hmcts.reform.ccd.client.model.SubmittedCallbackResponse;
 import uk.gov.hmcts.reform.idam.client.models.UserInfo;
 
+import java.math.BigDecimal;
 import java.nio.charset.Charset;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.UUID;
@@ -39,6 +43,7 @@ import static java.lang.System.getenv;
 import static java.util.Collections.singletonList;
 import static org.jooq.nfdiv.civil.Tables.SOLICITORS;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
+import static uk.gov.hmcts.divorce.divorcecase.model.PaymentStatus.SUCCESS;
 import static uk.gov.hmcts.divorce.divorcecase.model.State.Draft;
 import static uk.gov.hmcts.divorce.divorcecase.model.UserRole.APPLICANT_1_SOLICITOR;
 import static uk.gov.hmcts.divorce.divorcecase.model.UserRole.CASE_WORKER;
@@ -72,7 +77,10 @@ public class CreateTestCase implements CCDConfig<CaseData, State, UserRole> {
         SOLICITORG("33153390-cdb9-3c66-8562-c2242a67800d", UserRole.SOLICITOR_G.getRole()),
         SOLICITORH("6c23b66f-5282-3ed8-a2c4-58ae418581e8", UserRole.SOLICITOR_H.getRole()),
         SOLICITORI("cb3c3109-5d92-374e-b551-3cb72d6dad9d", UserRole.SOLICITOR_I.getRole()),
-        SOLICITORJ("38a2499c-0c65-3fb0-9342-e47091c766f6", UserRole.SOLICITOR_J.getRole());
+        SOLICITORJ("38a2499c-0c65-3fb0-9342-e47091c766f6", UserRole.SOLICITOR_J.getRole()),
+        APPLICANT_2_SOLICITOR("b81df946-87c4-3eb8-95e0-2da70727aec8", UserRole.APPLICANT_2_SOLICITOR.getRole()),
+        APPLICANT_1_SOLICITOR("74779774-2fc4-32c9-a842-f8d0aa6e770a",UserRole.APPLICANT_1_SOLICITOR.getRole()),
+        CITIZEN("20fa35c5-167f-3d6f-b8ab-5c487d16f29d", UserRole.CITIZEN.getRole());
 
         private final String id;
         private final String role;
@@ -81,7 +89,6 @@ public class CreateTestCase implements CCDConfig<CaseData, State, UserRole> {
             this.id = id;
             this.role = role;
         }
-
     }
 
     @Autowired
@@ -192,6 +199,21 @@ public class CreateTestCase implements CCDConfig<CaseData, State, UserRole> {
             .build();
     }
 
+    private void createPayment(CaseDetails<CaseData, State> details) {
+        PaymentRecord paymentRecord = db.newRecord(Payment.PAYMENT);
+        paymentRecord.setAmount(new BigDecimal(550));
+        paymentRecord.setChannel("online");
+        paymentRecord.setFeeCode("FEE0001");
+        paymentRecord.setReference("paymentRef");
+        paymentRecord.setStatus(SUCCESS.getLabel());
+        String paymentId = UUID.randomUUID().toString();
+        paymentRecord.setId(paymentId);
+        paymentRecord.setCaseReference(details.getId());
+        paymentRecord.setTransactionId("ge7po9h5bhbtbd466424src9tk");
+        paymentRecord.setCreated(LocalDateTime.now());
+        paymentRecord.store();
+    }
+
 
     public SubmittedCallbackResponse submitted(CaseDetails<CaseData, State> details, CaseDetails<CaseData, State> before) {
         submittedCallbackTriggered = true;
@@ -199,6 +221,8 @@ public class CreateTestCase implements CCDConfig<CaseData, State, UserRole> {
         var caseId = details.getId();
         var app2Id = data.getCaseInvite().applicant2UserId();
         var auth = httpServletRequest.getHeader(AUTHORIZATION);
+
+       createPayment(details);
 
         if (data.getApplicant1().isRepresented()) {
             var orgId = details
@@ -223,19 +247,24 @@ public class CreateTestCase implements CCDConfig<CaseData, State, UserRole> {
 
             ccdAccessService.addRoleToCase(app2Id, caseId, orgId, APPLICANT_1_SOLICITOR);
         } else if (data.getCaseInvite().applicant2UserId() != null) {
-
-            Arrays.stream(SolicitorRoles.values()).toList().forEach(org -> {
-
-                if (org != SolicitorRoles.CREATOR) {
-                    ccdAccessService.linkRespondentToApplication(auth, caseId, org.getId(), details, org.getRole());
-                }
-                User user = idamService.retrieveUser(auth);
-                UserInfo userDetails = user.getUserDetails();
-
-                createSolicitor(details, org.getRole(), userDetails);
-            });
-
+            ccdAccessService.linkRespondentToApplication(auth, caseId, app2Id, details, UserRole.APPLICANT_2.getRole());
         }
+
+        Arrays.stream(SolicitorRoles.values()).toList().forEach(org -> {
+
+            if (org != SolicitorRoles.CREATOR
+                || org != SolicitorRoles.APPLICANT2
+                || org != SolicitorRoles.APPLICANT_1_SOLICITOR
+                || org != SolicitorRoles.APPLICANT_2_SOLICITOR
+            ) {
+                ccdAccessService.linkRespondentToApplication(auth, caseId, org.getId(), details, org.getRole());
+            }
+            log.info("Adding user role to org {}", org.role);
+            User user = idamService.retrieveUser(auth);
+            UserInfo userDetails = user.getUserDetails();
+
+            createSolicitor(details, org.getRole(), userDetails);
+        });
 
         return SubmittedCallbackResponse.builder().build();
     }

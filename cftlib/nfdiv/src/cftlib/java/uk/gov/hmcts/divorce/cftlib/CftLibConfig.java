@@ -1,12 +1,8 @@
 package uk.gov.hmcts.divorce.cftlib;
 
-import com.google.common.collect.ImmutableMap;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.core.io.DefaultResourceLoader;
-import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Component;
 import uk.gov.hmcts.ccd.sdk.CCDDefinitionGenerator;
 import uk.gov.hmcts.rse.ccd.lib.ControlPlane;
@@ -16,11 +12,9 @@ import uk.gov.hmcts.rse.ccd.lib.api.CFTLibConfigurer;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.sql.Connection;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Component
 public class CftLibConfig implements CFTLibConfigurer {
@@ -52,6 +46,7 @@ public class CftLibConfig implements CFTLibConfigurer {
         users.put("solicitori@gmail.com", List.of("caseworker", "caseworker-divorce", "caseworker-divorce-solicitor"));
         users.put("solicitorj@gmail.com", List.of("caseworker", "caseworker-divorce", "caseworker-divorce-solicitor"));
         users.put("divorce_as_caseworker_admin@mailinator.com", List.of("caseworker-divorce", "caseworker-divorce-superuser"));
+        users.put("divorce_citizen@mailinator.com", List.of("citizen"));
 
         for (var entry : users.entrySet()) {
             lib.createIdamUser(entry.getKey(), entry.getValue().toArray(new String[0]));
