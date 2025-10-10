@@ -142,25 +142,6 @@ public class NFDCaseRepository implements CaseRepository<CaseData> {
     }
 
     @SneakyThrows
-    private void addSolicitorClaims(long caseRef, CaseData caseData) {
-        final User caseworkerUser = idamService.retrieveUser(request.getHeader(AUTHORIZATION));
-
-        var clients = db.fetch(CIVIL.CLAIMS_BY_CLIENT,
-            CIVIL.CLAIMS_BY_CLIENT.REFERENCE.eq(caseRef),
-            CIVIL.CLAIMS_BY_CLIENT.SOLICITOR_ID.eq(Long.valueOf(caseworkerUser.getUserDetails().getUid()))
-        );
-
-        PebbleTemplate compiledTemplate = pebl.getTemplate("yourClients");
-        Writer writer = new StringWriter();
-
-        Map<String, Object> context = new HashMap<>();
-        context.put("clients", clients);
-
-        compiledTemplate.evaluate(writer, context);
-        caseData.setClientsMd(writer.toString());
-    }
-
-    @SneakyThrows
     private void addClaims(long caseRef, CaseData caseData) {
         var claims = db.fetch(CIVIL.JUDGE_CLAIMS, CIVIL.JUDGE_CLAIMS.REFERENCE.eq(caseRef));
 
